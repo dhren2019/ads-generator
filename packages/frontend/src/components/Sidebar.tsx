@@ -47,6 +47,10 @@ export function Sidebar() {
         <NavLink href="/ads" active={pathname.startsWith('/ads')} isCollapsed={isCollapsed}>
           {isCollapsed ? '🎨' : 'Ads Generator'}
         </NavLink>
+
+        <NavLink href="/travel-plan" active={pathname.startsWith('/travel-plan')} isCollapsed={isCollapsed}>
+          {isCollapsed ? '✈️' : 'Planes de Viaje'}
+        </NavLink>
       </nav>
 
       <div className="flex flex-col h-[calc(100%-12rem)]">
@@ -104,4 +108,4 @@ function NavLink({
       {children}
     </Link>
   );
-}        
+}
