@@ -4,10 +4,14 @@ const handleStepByStepProcess = async () => {
   if (currentStep === 1) {
     toast({
       title: 'Buscando vuelos',
-      description: `Enviando petición a la API SERP para buscar vuelos de ${formData.origin} a ${formData.destination}`,
+      description: 'Enviando petición a SERP API para buscar vuelos...',
     });
     await handleSearchFlights();
     if (flightResults.length > 0) {
+      toast({
+        title: 'Búsqueda completada',
+        description: `Se encontraron ${flightResults.length} vuelos. Avanzando al siguiente paso.`,
+      });
       goToNextStep();
     }
   }
@@ -15,10 +19,14 @@ const handleStepByStepProcess = async () => {
   else if (currentStep === 2) {
     toast({
       title: 'Buscando hoteles',
-      description: `Enviando petición a la API SERP para buscar hoteles en ${formData.destination}`,
+      description: 'Enviando petición a SERP API para buscar hoteles...',
     });
     await handleSearchHotels();
     if (hotelResults.length > 0) {
+      toast({
+        title: 'Búsqueda completada',
+        description: `Se encontraron ${hotelResults.length} hoteles. Avanzando al siguiente paso.`,
+      });
       goToNextStep();
     }
   }
@@ -26,7 +34,7 @@ const handleStepByStepProcess = async () => {
   else if (currentStep === 3) {
     toast({
       title: 'Buscando actividades',
-      description: `Enviando petición a la API SERP para buscar actividades en ${formData.destination}`,
+      description: 'Enviando petición a SERP API para buscar actividades...',
     });
     await handleSearchActivities();
     if (activityResults.length > 0) {
@@ -41,12 +49,18 @@ const handleStepByStepProcess = async () => {
       
       setCompleteTravelPlanData(completeData);
       
-      // Generate additional travel plan data
       toast({
         title: 'Generando plan de viaje',
-        description: `Enviando petición a la API para generar información adicional sobre ${formData.destination}`,
+        description: 'Enviando petición a SERP API para generar información adicional del plan de viaje...',
       });
+      
+      // Generate additional travel plan data
       await handleGenerateTravelPlan();
+      
+      toast({
+        title: 'Plan de viaje completo',
+        description: 'Se ha generado el plan de viaje completo con todos los datos.',
+      });
       
       goToNextStep();
     }
@@ -57,7 +71,7 @@ const handleSearchFlights = async () => {
   if (!formData.origin || !formData.destination || !formData.departure_date) {
     toast({
       title: 'Información incompleta',
-      description: 'Por favor, completa el origen, destino y fecha de salida para buscar vuelos',
+      description: 'Por favor, complete el origen, destino y fecha de salida para buscar vuelos',
       variant: 'destructive',
     });
     return;
@@ -66,7 +80,12 @@ const handleSearchFlights = async () => {
   setSearchingFlights(true);
   try {
     // Mostrar mensaje de petición a la API
-    console.log(`Enviando petición a la API SERP para buscar vuelos de ${formData.origin} a ${formData.destination}`);
+    console.log('Enviando petición a SERP API para vuelos:', {
+      origin: formData.origin,
+      destination: formData.destination,
+      departure_date: formData.departure_date,
+      return_date: formData.return_date
+    });
     
     // Call our edge function that uses SERP API
     const { data, error } = await supabase.functions.invoke('search-travel', {
@@ -81,11 +100,11 @@ const handleSearchFlights = async () => {
       }
     });
     
-    console.log('Respuesta de la API SERP (vuelos):', data);
-    
     if (error) {
       throw new Error(error.message);
     }
+    
+    console.log('Respuesta de SERP API para vuelos:', data);
     
     if (data?.success) {
       // Process flight data
@@ -111,15 +130,15 @@ const handleSearchFlights = async () => {
     } else {
       toast({
         title: 'No se encontraron vuelos',
-        description: 'Intenta con fechas o destinos diferentes',
+        description: 'Intente con diferentes fechas o destinos',
         variant: 'destructive',
       });
     }
   } catch (error: any) {
-    console.error('Error al buscar vuelos:', error);
+    console.error('Error buscando vuelos:', error);
     toast({
       title: 'Error',
-      description: 'No se pudieron buscar vuelos en este momento. Por favor, inténtalo más tarde.',
+      description: 'No se pudieron buscar vuelos en este momento. Por favor, inténtelo de nuevo más tarde.',
       variant: 'destructive',
     });
   } finally {
@@ -131,7 +150,7 @@ const handleSearchHotels = async () => {
   if (!formData.destination || !formData.departure_date) {
     toast({
       title: 'Información incompleta',
-      description: 'Por favor, completa el destino y las fechas para buscar hoteles',
+      description: 'Por favor, complete el destino y las fechas para buscar hoteles',
       variant: 'destructive',
     });
     return;
@@ -140,7 +159,11 @@ const handleSearchHotels = async () => {
   setSearchingHotels(true);
   try {
     // Mostrar mensaje de petición a la API
-    console.log(`Enviando petición a la API SERP para buscar hoteles en ${formData.destination}`);
+    console.log('Enviando petición a SERP API para hoteles:', {
+      destination: formData.destination,
+      check_in_date: formData.departure_date,
+      check_out_date: formData.return_date
+    });
     
     // Call our edge function that uses SERP API
     const { data, error } = await supabase.functions.invoke('search-travel', {
@@ -154,11 +177,11 @@ const handleSearchHotels = async () => {
       }
     });
     
-    console.log('Respuesta de la API SERP (hoteles):', data);
-    
     if (error) {
       throw new Error(error.message);
     }
+    
+    console.log('Respuesta de SERP API para hoteles:', data);
     
     if (data?.success) {
       // Process hotel data
@@ -167,10 +190,10 @@ const handleSearchHotels = async () => {
       // Map the SERP API data to our HotelResult format
       const mappedHotels: HotelResult[] = hotels.slice(0, 5).map((hotel: any, index: number) => ({
         id: `hotel-${index}`,
-        name: hotel.name || 'Unknown Hotel',
-        address: hotel.address || 'Unknown Location',
+        name: hotel.name || 'Hotel desconocido',
+        address: hotel.address || 'Ubicación desconocida',
         rating: hotel.rating || 0,
-        price: hotel.price || 'Unknown',
+        price: hotel.price || 'Precio desconocido',
         imageUrl: hotel.thumbnail || 'https://placehold.co/400x300?text=Hotel+Image'
       }));
       
@@ -183,15 +206,15 @@ const handleSearchHotels = async () => {
     } else {
       toast({
         title: 'No se encontraron hoteles',
-        description: 'Intenta con un destino o fechas diferentes',
+        description: 'Intente con un destino o fechas diferentes',
         variant: 'destructive',
       });
     }
   } catch (error: any) {
-    console.error('Error al buscar hoteles:', error);
+    console.error('Error buscando hoteles:', error);
     toast({
       title: 'Error',
-      description: 'No se pudieron buscar hoteles en este momento. Por favor, inténtalo más tarde.',
+      description: 'No se pudieron buscar hoteles en este momento. Por favor, inténtelo de nuevo más tarde.',
       variant: 'destructive',
     });
   } finally {
@@ -203,7 +226,7 @@ const handleSearchActivities = async () => {
   if (!formData.destination) {
     toast({
       title: 'Información incompleta',
-      description: 'Por favor, completa el destino para buscar actividades',
+      description: 'Por favor, complete el destino para buscar actividades',
       variant: 'destructive',
     });
     return;
@@ -212,7 +235,9 @@ const handleSearchActivities = async () => {
   setSearchingActivities(true);
   try {
     // Mostrar mensaje de petición a la API
-    console.log(`Enviando petición a la API para buscar actividades en ${formData.destination}`);
+    console.log('Enviando petición a SERP API para actividades:', {
+      destination: formData.destination
+    });
     
     // Call our edge function that uses Travily API
     const { data, error } = await supabase.functions.invoke('search-travel', {
@@ -224,7 +249,7 @@ const handleSearchActivities = async () => {
       }
     });
     
-    console.log('Respuesta de la API (actividades):', data);
+    console.log('Respuesta de SERP API para actividades:', data);
     
     if (error) {
       throw new Error(error.message);
@@ -237,9 +262,9 @@ const handleSearchActivities = async () => {
       // Map the Travily API data to our ActivityResult format
       const mappedActivities: ActivityResult[] = activities.slice(0, 5).map((activity: any, index: number) => ({
         id: `activity-${index}`,
-        name: activity.name || 'Unknown Activity',
-        description: activity.description || 'No description available',
-        price: activity.price || 'Price not available',
+        name: activity.name || 'Actividad desconocida',
+        description: activity.description || 'No hay descripción disponible',
+        price: activity.price || 'Precio no disponible',
         imageUrl: activity.image_url || 'https://placehold.co/400x300?text=Activity+Image'
       }));
       
@@ -261,15 +286,15 @@ const handleSearchActivities = async () => {
     } else {
       toast({
         title: 'No se encontraron actividades',
-        description: 'Intenta con un destino diferente',
+        description: 'Intente con un destino diferente',
         variant: 'destructive',
       });
     }
   } catch (error: any) {
-    console.error('Error al buscar actividades:', error);
+    console.error('Error buscando actividades:', error);
     toast({
       title: 'Error',
-      description: 'No se pudieron buscar actividades en este momento. Por favor, inténtalo más tarde.',
+      description: 'No se pudieron buscar actividades en este momento. Por favor, inténtalo de nuevo más tarde.',
       variant: 'destructive',
     });
   } finally {
@@ -281,7 +306,7 @@ const handleGenerateTravelPlan = async () => {
   if (!formData.destination || !formData.departure_date || !formData.return_date) {
     toast({
       title: 'Información incompleta',
-      description: 'Por favor, completa el destino y las fechas de viaje para generar un plan de viaje',
+      description: 'Por favor, complete el destino y las fechas de viaje para generar un plan de viaje',
       variant: 'destructive',
     });
     return;
@@ -290,7 +315,11 @@ const handleGenerateTravelPlan = async () => {
   setGeneratingTravelPlan(true);
   try {
     // Mostrar mensaje de petición a la API
-    console.log(`Enviando petición a la API SERP para generar plan de viaje para ${formData.destination}`);
+    console.log('Enviando petición a SERP API para generar plan de viaje:', {
+      destination: formData.destination,
+      departure_date: formData.departure_date,
+      return_date: formData.return_date
+    });
     
     // Call our edge function with the generate_travel_plan type
     const { data, error } = await supabase.functions.invoke('search-travel', {
@@ -304,20 +333,15 @@ const handleGenerateTravelPlan = async () => {
       }
     });
     
-    console.log('Respuesta de la API SERP (plan de viaje):', data);
-    
     if (error) {
       throw new Error(error.message);
     }
     
+    console.log('Respuesta de SERP API para plan de viaje:', data);
+    
     if (data?.success) {
-      // Store the travel plan data
+      // Set the travel plan data
       setTravelPlanData(data.data);
-      
-      toast({
-        title: 'Plan de viaje generado',
-        description: `Hemos generado un plan de viaje para ${formData.destination} con información sobre clima, lugares para visitar, gastronomía y más.`,
-      });
       
       // Actualizar el JSON completo con la información adicional
       if (completeTravelPlanData) {
@@ -333,15 +357,20 @@ const handleGenerateTravelPlan = async () => {
           };
         });
       }
+      
+      toast({
+        title: 'Plan de viaje generado',
+        description: `Se ha generado un plan de viaje para ${formData.destination} con información sobre clima, lugares para visitar, gastronomía y más.`,
+      });
     } else {
       toast({
         title: 'No se pudo generar el plan de viaje',
-        description: 'Intenta con un destino diferente',
+        description: 'Intente con un destino diferente',
         variant: 'destructive',
       });
     }
   } catch (error: any) {
-    console.error('Error al generar el plan de viaje:', error);
+    console.error('Error generando plan de viaje:', error);
     toast({
       title: 'Error',
       description: 'No se pudo generar el plan de viaje en este momento. Por favor, inténtalo más tarde.',
